@@ -22,6 +22,8 @@ export type CarState = {
   v: Vec3;
   yaw: number;
   yawVel: number;
+  pitch: number;
+  roll: number;
   grounded: boolean;
   boostCd: number;
   lap: number;

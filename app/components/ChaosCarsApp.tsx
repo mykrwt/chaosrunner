@@ -147,28 +147,27 @@ export default function ChaosCarsApp() {
   }
 
   return (
-    <div className="min-h-dvh bg-gradient-to-br from-sky-200 via-zinc-50 to-lime-100 px-6 py-10 text-zinc-900">
+    <div className="min-h-dvh bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 px-6 py-10 text-zinc-100">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
         <header className="flex flex-col gap-2">
           <h1 className="text-3xl font-black tracking-tight">Chaos Cars</h1>
-          <p className="max-w-2xl text-sm text-zinc-700">
-            A tiny multiplayer 3D driving game: pure frontend + WebRTC P2P (no backend, no accounts). Share a room
-            code, drift into friends, and launch each other off boost pads.
+          <p className="max-w-2xl text-sm text-zinc-300">
+            Multiplayer 3D arcade racing game. Race friends through hilly tracks, hit boost pads, and battle for first place.
           </p>
         </header>
 
-        <div className="rounded-xl bg-white/70 p-5 shadow-sm ring-1 ring-zinc-900/5 backdrop-blur">
+        <div className="rounded-xl bg-zinc-800/90 p-5 shadow-sm ring-1 ring-zinc-700/50 backdrop-blur">
           <label className="mb-2 block text-sm font-semibold">Your name</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-0 focus:border-fuchsia-400"
+            className="w-full rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none ring-0 focus:border-fuchsia-500"
             maxLength={18}
           />
         </div>
 
         {screen === "menu" ? (
-          <div className="grid gap-4 rounded-xl bg-white/70 p-5 shadow-sm ring-1 ring-zinc-900/5 backdrop-blur">
+          <div className="grid gap-4 rounded-xl bg-zinc-800/90 p-5 shadow-sm ring-1 ring-zinc-700/50 backdrop-blur">
             <div className="flex flex-col gap-2">
               <button
                 className="rounded-lg bg-fuchsia-600 px-4 py-3 font-semibold text-white hover:bg-fuchsia-500"
@@ -183,11 +182,11 @@ export default function ChaosCarsApp() {
                   <input
                     value={roomInput}
                     onChange={(e) => setRoomInput(e.target.value)}
-                    className="flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm uppercase outline-none focus:border-fuchsia-400"
+                    className="flex-1 rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2 text-sm uppercase text-zinc-100 outline-none focus:border-fuchsia-500"
                     placeholder="ABC123"
                   />
                   <button
-                    className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+                    className="rounded-lg bg-zinc-700 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-600"
                     onClick={joinRoom}
                   >
                     Join
@@ -195,7 +194,7 @@ export default function ChaosCarsApp() {
                 </div>
               </div>
 
-              <div className="text-xs text-zinc-600">
+              <div className="text-xs text-zinc-400">
                 Tip: if you’re on a strict network, P2P may be blocked. Try another connection or a different browser.
               </div>
             </div>
@@ -215,7 +214,7 @@ export default function ChaosCarsApp() {
           />
         ) : null}
 
-        <div className="text-xs text-zinc-600">
+        <div className="text-xs text-zinc-500">
           Built for static hosting. Multiplayer is P2P WebRTC using Trystero’s torrent signaling relays (no custom
           backend).
         </div>
@@ -248,28 +247,28 @@ function Lobby(props: {
   const ids = Object.keys(props.players).sort();
 
   return (
-    <div className="grid gap-4 rounded-xl bg-white/70 p-5 shadow-sm ring-1 ring-zinc-900/5 backdrop-blur">
+    <div className="grid gap-4 rounded-xl bg-zinc-800/90 p-5 shadow-sm ring-1 ring-zinc-700/50 backdrop-blur">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold text-zinc-700">Room code</div>
+          <div className="text-sm font-semibold text-zinc-400">Room code</div>
           <div className="text-2xl font-black tracking-widest">{props.roomId}</div>
         </div>
 
         <div className="flex items-center gap-2">
           <button
-            className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+            className="rounded-lg bg-zinc-700 px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-600"
             onClick={() => void navigator.clipboard.writeText(props.roomId)}
           >
             Copy code
           </button>
           <button
-            className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+            className="rounded-lg bg-zinc-700 px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-600"
             onClick={() => void navigator.clipboard.writeText(props.shareLink)}
           >
             Copy link
           </button>
           <button
-            className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-zinc-900 ring-1 ring-zinc-200 hover:bg-zinc-50"
+            className="rounded-lg bg-zinc-600 px-3 py-2 text-sm font-semibold text-white ring-1 ring-zinc-500 hover:bg-zinc-500"
             onClick={props.onLeave}
           >
             Leave
@@ -278,25 +277,25 @@ function Lobby(props: {
       </div>
 
       <div className="grid gap-2">
-        <div className="text-sm font-semibold text-zinc-700">Players ({props.peerCount}/8)</div>
+        <div className="text-sm font-semibold text-zinc-300">Players ({props.peerCount}/8)</div>
         <div className="grid gap-2">
           {ids.map((id) => (
-            <div key={id} className="flex items-center justify-between rounded-lg bg-white/60 px-3 py-2">
+            <div key={id} className="flex items-center justify-between rounded-lg bg-zinc-700/60 px-3 py-2">
               <div className="flex items-center gap-3">
                 <div className="h-3 w-3 rounded-full" style={{ background: props.players[id].color }} />
                 <div className="font-semibold">{props.players[id].name}</div>
               </div>
-              <div className="text-xs text-zinc-600">{props.hostId === id ? "Host" : ""}</div>
+              <div className="text-xs text-zinc-400">{props.hostId === id ? "Host" : ""}</div>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="grid gap-2 rounded-lg bg-white/60 p-3">
+      <div className="grid gap-2 rounded-lg bg-zinc-700/60 p-3">
         <div className="text-sm font-semibold">Match settings</div>
         <div className="flex flex-wrap gap-2">
           <select
-            className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm"
+            className="rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
             value={mode}
             onChange={(e) => setMode(e.target.value as MatchSettings["mode"])}
           >
@@ -305,22 +304,22 @@ function Lobby(props: {
             <option value="elimination">Elimination</option>
           </select>
 
-          <label className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm">
-            <span className="text-zinc-600">Laps</span>
+          <label className="flex items-center gap-2 rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-sm text-zinc-100">
+            <span className="text-zinc-400">Laps</span>
             <input
               type="number"
-              className="w-16 bg-transparent text-right outline-none"
+              className="w-16 bg-transparent text-right text-zinc-100 outline-none"
               value={laps}
               onChange={(e) => setLaps(Math.max(1, Math.min(6, Number(e.target.value) || 1)))}
               disabled={mode !== "race"}
             />
           </label>
 
-          <label className="flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm">
-            <span className="text-zinc-600">Seconds</span>
+          <label className="flex items-center gap-2 rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-sm text-zinc-100">
+            <span className="text-zinc-400">Seconds</span>
             <input
               type="number"
-              className="w-16 bg-transparent text-right outline-none"
+              className="w-16 bg-transparent text-right text-zinc-100 outline-none"
               value={duration}
               onChange={(e) => setDuration(Math.max(20, Math.min(300, Number(e.target.value) || 60)))}
             />
@@ -336,11 +335,11 @@ function Lobby(props: {
             Start match
           </button>
         ) : (
-          <div className="mt-2 text-sm text-zinc-700">Waiting for host to start…</div>
+          <div className="mt-2 text-sm text-zinc-300">Waiting for host to start…</div>
         )}
       </div>
 
-      <div className="text-xs text-zinc-600">
+      <div className="text-xs text-zinc-400">
         Host migration: if the host disconnects, the remaining peers deterministically elect a new host and keep going.
       </div>
     </div>

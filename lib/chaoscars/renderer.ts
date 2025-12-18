@@ -72,17 +72,45 @@ export class ChaosCarsRenderer {
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
     this.scene.add(ambientLight);
 
+    const groundGeo = new THREE.PlaneGeometry(1200, 1200, 150, 150);
+    const groundPos = groundGeo.attributes.position;
+    
+    const seedNum = params.track.seed.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    const seedA = (seedNum * 0.123) % (Math.PI * 2);
+    const seedB = (seedNum * 0.456) % (Math.PI * 2);
+    
+    for (let i = 0; i < groundPos.count; i++) {
+      const x = groundPos.getX(i);
+      const z = groundPos.getY(i);
+      const sx = x * 0.012;
+      const sz = z * 0.012;
+      
+      const h1 = Math.sin(sx + seedA) * 8.5 + Math.cos(sz + seedB) * 8.5;
+      const h2 = Math.sin((sx + sz) * 2.1 + seedA * 0.7) * 5.2;
+      const h3 = Math.cos((sx * 1.8 - sz * 1.9) + seedB * 0.8) * 3.8;
+      const h4 = Math.sin((sx * 3.2 + sz * 2.8) + seedA * 1.3) * 2.1;
+      const h5 = Math.cos((sx * 5.5 - sz * 4.8) + seedB * 1.7) * 1.2;
+      
+      const hills = h1 + h2 + h3 + h4 + h5;
+      const valleyFactor = Math.sin(sx * 0.8) * Math.cos(sz * 0.8);
+      const valleys = valleyFactor * 6.5;
+      
+      const y = hills + valleys - 1.2;
+      groundPos.setZ(i, y);
+    }
+    
+    groundGeo.computeVertexNormals();
+    
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(1200, 1200, 120, 120),
+      groundGeo,
       new THREE.MeshStandardMaterial({ 
-        color: 0x7ddc71, 
-        roughness: 0.85,
-        metalness: 0.1,
+        color: 0x6bc95f, 
+        roughness: 0.9,
+        metalness: 0.05,
         flatShading: false
       })
     );
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -1.2;
     ground.receiveShadow = true;
     this.scene.add(ground);
 
@@ -182,6 +210,9 @@ export class ChaosCarsRenderer {
       while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
       while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
       group.rotation.y += yawDiff * lerpFactor;
+      
+      group.rotation.x += (state.pitch - group.rotation.x) * lerpFactor;
+      group.rotation.z += (state.roll - group.rotation.z) * lerpFactor;
       
       group.visible = state.alive;
       if (state.finished) {
@@ -291,10 +322,21 @@ function createRoadMesh(track: Track): THREE.Mesh {
     const rx = s.p.x - s.left.x * w;
     const rz = s.p.z - s.left.z * w;
 
-    const y = s.p.y + 0.08;
+    const y = s.p.y + 0.25;
 
     positions.set([lx, y, lz, rx, y, rz], i * 2 * 3);
-    normals.set([0, 1, 0, 0, 1, 0], i * 2 * 3);
+    
+    const next = samples[(i + 1) % samples.length];
+    const dx = next.p.x - s.p.x;
+    const dy = next.p.y - s.p.y;
+    const dz = next.p.z - s.p.z;
+    const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const nx = -dy * s.left.z / len;
+    const ny = (dx * dx + dz * dz) / (len * len);
+    const nz = dy * s.left.x / len;
+    const nlen = Math.sqrt(nx * nx + ny * ny + nz * nz);
+    
+    normals.set([nx / nlen, ny / nlen, nz / nlen, nx / nlen, ny / nlen, nz / nlen], i * 2 * 3);
     uvs.set([0, s.s * 10, 1, s.s * 10], i * 2 * 2);
   }
 

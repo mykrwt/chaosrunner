@@ -20,6 +20,8 @@ export function createCarState(spawn: { p: { x: number; y: number; z: number }; 
     v: v3(0, 0, 0),
     yaw: spawn.yaw,
     yawVel: 0,
+    pitch: 0,
+    roll: 0,
     grounded: true,
     boostCd: 0,
     lap: 0,
@@ -37,6 +39,8 @@ export function respawnCar(state: CarState, track: Track, cpIndex: number): void
   state.v = v3(0, 0, 0);
   state.yaw = spawn.yaw;
   state.yawVel = 0;
+  state.pitch = 0;
+  state.roll = 0;
   state.grounded = true;
 }
 
@@ -245,6 +249,30 @@ export function stepCarArcade(params: { now: number; dt: number; track: Track; c
       car.lastHitAt = now;
     }
   }
+
+  const sampleDist = 2.5;
+  const frontX = car.p.x + forward.x * sampleDist;
+  const frontZ = car.p.z + forward.z * sampleDist;
+  const backX = car.p.x - forward.x * sampleDist;
+  const backZ = car.p.z - forward.z * sampleDist;
+  const leftX = car.p.x + right.x * sampleDist;
+  const leftZ = car.p.z + right.z * sampleDist;
+  const rightX = car.p.x - right.x * sampleDist;
+  const rightZ = car.p.z - right.z * sampleDist;
+
+  const frontH = track.getSurfaceInfo(frontX, frontZ).height;
+  const backH = track.getSurfaceInfo(backX, backZ).height;
+  const leftH = track.getSurfaceInfo(leftX, leftZ).height;
+  const rightH = track.getSurfaceInfo(rightX, rightZ).height;
+
+  const targetPitch = Math.atan2(frontH - backH, sampleDist * 2);
+  const targetRoll = Math.atan2(rightH - leftH, sampleDist * 2);
+
+  const pitchSpeed = car.grounded ? 8.0 : 3.5;
+  const rollSpeed = car.grounded ? 7.5 : 3.0;
+
+  car.pitch += (targetPitch - car.pitch) * pitchSpeed * dt;
+  car.roll += (targetRoll - car.roll) * rollSpeed * dt;
 }
 
 export function computeRaceProgress(car: CarState): number {
