@@ -203,12 +203,16 @@ export class ChaosCarsRenderer {
         emissive: 0xffaa00,
         emissiveIntensity: 0.4,
         roughness: 0.3,
-        metalness: 0.6
+        metalness: 0.6,
+        depthTest: true,
+        depthWrite: true
       });
       const ring = new THREE.Mesh(geo, mat);
       ring.rotation.x = Math.PI / 2;
       ring.position.set(cp.p.x, cp.p.y + 3.8, cp.p.z);
       ring.castShadow = true;
+      ring.receiveShadow = true;
+      ring.renderOrder = 1;
       this.scene.add(ring);
       this.checkpointMeshes.push(ring);
     }
@@ -222,12 +226,15 @@ export class ChaosCarsRenderer {
         emissive: 0x1d5cff, 
         emissiveIntensity: 0.6,
         roughness: 0.2,
-        metalness: 0.8
+        metalness: 0.8,
+        depthTest: true,
+        depthWrite: true
       });
       const disk = new THREE.Mesh(geo, mat);
       disk.position.set(pad.p.x, pad.p.y + 0.08, pad.p.z);
       disk.castShadow = true;
       disk.receiveShadow = true;
+      disk.renderOrder = 0;
       this.scene.add(disk);
       this.boostMeshes.push(disk);
     }
@@ -310,11 +317,14 @@ function createRoadMesh(track: Track): THREE.Mesh {
   const mat = new THREE.MeshStandardMaterial({ 
     color: 0x2f2f3c,
     roughness: 0.65,
-    metalness: 0.15
+    metalness: 0.15,
+    depthTest: true,
+    depthWrite: true
   });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.receiveShadow = true;
   mesh.castShadow = false;
+  mesh.renderOrder = -1;
 
   return mesh;
 }
@@ -340,44 +350,103 @@ function createCarGroup(color: string): THREE.Group {
     transparent: true,
     opacity: 0.7
   });
+  const headlightMat = new THREE.MeshStandardMaterial({ 
+    color: 0xffff99,
+    roughness: 0.05,
+    metalness: 0.95,
+    emissive: 0xffff00,
+    emissiveIntensity: 0.3
+  });
 
+  // Main body - tapered towards front for directionality
   const body = new THREE.Mesh(new THREE.BoxGeometry(3.8, 1.2, 2.3), bodyMat);
   body.position.y = 0.95;
   body.castShadow = true;
   body.receiveShadow = true;
   group.add(body);
 
+  // Front nose - points forward for clear directionality
+  const noseGeo = new THREE.ConeGeometry(0.6, 0.8, 8);
+  const nose = new THREE.Mesh(noseGeo, accentMat);
+  nose.rotation.z = Math.PI / 2;
+  nose.position.set(0, 0.95, 1.5);
+  nose.castShadow = true;
+  nose.receiveShadow = true;
+  group.add(nose);
+
+  // Front left headlight
+  const lightGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.15, 12);
+  const lightL = new THREE.Mesh(lightGeo, headlightMat);
+  lightL.rotation.z = Math.PI / 2;
+  lightL.position.set(-1.1, 1.1, 1.6);
+  lightL.castShadow = true;
+  group.add(lightL);
+
+  // Front right headlight
+  const lightR = new THREE.Mesh(lightGeo, headlightMat);
+  lightR.rotation.z = Math.PI / 2;
+  lightR.position.set(1.1, 1.1, 1.6);
+  lightR.castShadow = true;
+  group.add(lightR);
+
+  // Roof - tapered back windshield area
   const roof = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.75, 1.65), glassMat);
   roof.position.set(0, 1.6, -0.05);
   roof.castShadow = true;
   roof.receiveShadow = true;
   group.add(roof);
 
+  // Front bumper - prominent
   const bumperFront = new THREE.Mesh(new THREE.BoxGeometry(3.9, 0.55, 0.6), accentMat);
   bumperFront.position.set(0, 0.62, 1.3);
   bumperFront.castShadow = true;
   bumperFront.receiveShadow = true;
   group.add(bumperFront);
 
+  // Back bumper
   const bumperBack = new THREE.Mesh(new THREE.BoxGeometry(3.9, 0.55, 0.5), accentMat);
   bumperBack.position.set(0, 0.62, -1.15);
   bumperBack.castShadow = true;
   bumperBack.receiveShadow = true;
   group.add(bumperBack);
 
-  const spoiler = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.15, 0.6), bodyMat);
-  spoiler.position.set(0, 1.45, -1.35);
+  // Tail lights - red glow at back
+  const tailLightMat = new THREE.MeshStandardMaterial({ 
+    color: 0xff3333,
+    roughness: 0.05,
+    metalness: 0.8,
+    emissive: 0xff0000,
+    emissiveIntensity: 0.2
+  });
+  
+  const tailGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.1, 12);
+  const tailL = new THREE.Mesh(tailGeo, tailLightMat);
+  tailL.rotation.z = Math.PI / 2;
+  tailL.position.set(-1.2, 1.1, -1.4);
+  tailL.castShadow = true;
+  group.add(tailL);
+
+  const tailR = new THREE.Mesh(tailGeo, tailLightMat);
+  tailR.rotation.z = Math.PI / 2;
+  tailR.position.set(1.2, 1.1, -1.4);
+  tailR.castShadow = true;
+  group.add(tailR);
+
+  // Rear spoiler - larger and more visible
+  const spoiler = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.2, 0.8), bodyMat);
+  spoiler.position.set(0, 1.55, -1.4);
   spoiler.castShadow = true;
   group.add(spoiler);
 
-  const wheelGeo = new THREE.CylinderGeometry(0.48, 0.48, 0.45, 16);
+  // Wheels - positioned properly with better geometry
+  const wheelGeo = new THREE.CylinderGeometry(0.52, 0.52, 0.48, 16);
   wheelGeo.rotateZ(Math.PI / 2);
 
   const wheelOffsets = [
-    [-1.4, 0.48, 1.0],
-    [1.4, 0.48, 1.0],
-    [-1.4, 0.48, -1.0],
-    [1.4, 0.48, -1.0],
+    [-1.5, 0.52, 1.0],
+    [1.5, 0.52, 1.0],
+    [-1.5, 0.52, -1.0],
+    [1.5, 0.52, -1.0],
   ] as const;
 
   for (const [x, y, z] of wheelOffsets) {
