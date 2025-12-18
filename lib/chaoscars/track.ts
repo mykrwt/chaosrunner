@@ -77,15 +77,15 @@ export function createTrack(seed: string): Track {
   const seedNum = hashStringToSeed(seed);
   const rng = mulberry32(seedNum);
 
-  const baseR = randRange(rng, 120, 150);
-  const wobbleR = randRange(rng, 10, 18);
-  const wobbleH = randRange(rng, 5, 9);
+  const baseR = randRange(rng, 125, 155);
+  const wobbleR = randRange(rng, 12, 20);
+  const wobbleH = randRange(rng, 6, 10);
 
   const seedA = randRange(rng, 0, Math.PI * 2);
   const seedB = randRange(rng, 0, Math.PI * 2);
   const seedC = randRange(rng, 0, Math.PI * 2);
 
-  const pointCount = 640;
+  const pointCount = 800;
   const points: Vec3[] = [];
 
   for (let i = 0; i < pointCount; i++) {
@@ -129,24 +129,24 @@ export function createTrack(seed: string): Track {
     samples.push({ p, t, left, s });
   }
 
-  const roadWidth = randRange(rng, 14, 18);
+  const roadWidth = randRange(rng, 15, 19);
 
-  const checkpointCount = 24;
+  const checkpointCount = 28;
   const checkpoints: Checkpoint[] = [];
   for (let i = 0; i < checkpointCount; i++) {
     const t = i / checkpointCount;
     const idx = Math.floor(t * samples.length) % samples.length;
     const s = samples[idx].s;
-    checkpoints.push({ index: i, s, p: samples[idx].p, radius: 9 });
+    checkpoints.push({ index: i, s, p: samples[idx].p, radius: 9.5 });
   }
 
   const boostPads: BoostPad[] = [];
-  const boostCount = 10;
+  const boostCount = 12;
   for (let i = 0; i < boostCount; i++) {
     const t = (i + 0.5) / boostCount;
     const idx = Math.floor(t * samples.length) % samples.length;
     const p = samples[idx].p;
-    boostPads.push({ p: v3(p.x, p.y + 0.15, p.z), radius: 7, impulse: 18, lift: 6 });
+    boostPads.push({ p: v3(p.x, p.y + 0.18, p.z), radius: 7.2, impulse: 20, lift: 6.5 });
   }
 
   const getSurfaceInfo = (x: number, z: number): SurfaceInfo => {
