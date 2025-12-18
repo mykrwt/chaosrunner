@@ -75,28 +75,14 @@ export class ChaosCarsRenderer {
     const groundGeo = new THREE.PlaneGeometry(1200, 1200, 150, 150);
     const groundPos = groundGeo.attributes.position;
     
-    const seedNum = params.track.seed.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    const seedA = (seedNum * 0.123) % (Math.PI * 2);
-    const seedB = (seedNum * 0.456) % (Math.PI * 2);
+    const terrain = params.track.terrain;
     
     for (let i = 0; i < groundPos.count; i++) {
       const x = groundPos.getX(i);
       const z = groundPos.getY(i);
-      const sx = x * 0.012;
-      const sz = z * 0.012;
       
-      const h1 = Math.sin(sx + seedA) * 8.5 + Math.cos(sz + seedB) * 8.5;
-      const h2 = Math.sin((sx + sz) * 2.1 + seedA * 0.7) * 5.2;
-      const h3 = Math.cos((sx * 1.8 - sz * 1.9) + seedB * 0.8) * 3.8;
-      const h4 = Math.sin((sx * 3.2 + sz * 2.8) + seedA * 1.3) * 2.1;
-      const h5 = Math.cos((sx * 5.5 - sz * 4.8) + seedB * 1.7) * 1.2;
-      
-      const hills = h1 + h2 + h3 + h4 + h5;
-      const valleyFactor = Math.sin(sx * 0.8) * Math.cos(sz * 0.8);
-      const valleys = valleyFactor * 6.5;
-      
-      const y = hills + valleys - 1.2;
-      groundPos.setZ(i, y);
+      const height = terrain.getHeight(x, z);
+      groundPos.setZ(i, height - 1.2);
     }
     
     groundGeo.computeVertexNormals();
@@ -307,46 +293,77 @@ export class ChaosCarsRenderer {
 }
 
 function createRoadMesh(track: Track): THREE.Mesh {
-  const samples = track.samples;
-  const w = track.roadWidth * 0.5;
-
-  const vertCount = samples.length * 2;
-  const positions = new Float32Array(vertCount * 3);
-  const normals = new Float32Array(vertCount * 3);
-  const uvs = new Float32Array(vertCount * 2);
-
-  for (let i = 0; i < samples.length; i++) {
-    const s = samples[i];
-    const lx = s.p.x + s.left.x * w;
-    const lz = s.p.z + s.left.z * w;
-    const rx = s.p.x - s.left.x * w;
-    const rz = s.p.z - s.left.z * w;
-
-    const y = s.p.y + 0.25;
-
-    positions.set([lx, y, lz, rx, y, rz], i * 2 * 3);
-    
-    const next = samples[(i + 1) % samples.length];
-    const dx = next.p.x - s.p.x;
-    const dy = next.p.y - s.p.y;
-    const dz = next.p.z - s.p.z;
-    const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    const nx = -dy * s.left.z / len;
-    const ny = (dx * dx + dz * dz) / (len * len);
-    const nz = dy * s.left.x / len;
-    const nlen = Math.sqrt(nx * nx + ny * ny + nz * nz);
-    
-    normals.set([nx / nlen, ny / nlen, nz / nlen, nx / nlen, ny / nlen, nz / nlen], i * 2 * 3);
-    uvs.set([0, s.s * 10, 1, s.s * 10], i * 2 * 2);
+  const roadSystem = track.road;
+  const segments = roadSystem.getSegments();
+  
+  if (segments.length === 0) {
+    const geo = new THREE.BufferGeometry();
+    const mat = new THREE.MeshStandardMaterial({ color: 0x2f2f3c });
+    return new THREE.Mesh(geo, mat);
   }
 
+  const verticesPerSegment = 5;
+  const totalVerts = segments.length * verticesPerSegment * 2;
+  const positions = new Float32Array(totalVerts * 3);
+  const normals = new Float32Array(totalVerts * 3);
+  const uvs = new Float32Array(totalVerts * 2);
+  
+  let vertIndex = 0;
+  
+  for (let segIdx = 0; segIdx < segments.length; segIdx++) {
+    const seg = segments[segIdx];
+    
+    for (let subIdx = 0; subIdx < verticesPerSegment; subIdx++) {
+      const leftPos = seg.leftEdge[subIdx];
+      const rightPos = seg.rightEdge[subIdx];
+      const centerPos = seg.centerline[subIdx];
+      
+      positions[vertIndex * 6 + 0] = leftPos.x;
+      positions[vertIndex * 6 + 1] = leftPos.y;
+      positions[vertIndex * 6 + 2] = leftPos.z;
+      
+      positions[vertIndex * 6 + 3] = rightPos.x;
+      positions[vertIndex * 6 + 4] = rightPos.y;
+      positions[vertIndex * 6 + 5] = rightPos.z;
+      
+      const terrain = track.terrain;
+      const normal = terrain.getNormal(centerPos.x, centerPos.z);
+      
+      normals[vertIndex * 6 + 0] = normal.x;
+      normals[vertIndex * 6 + 1] = normal.y;
+      normals[vertIndex * 6 + 2] = normal.z;
+      normals[vertIndex * 6 + 3] = normal.x;
+      normals[vertIndex * 6 + 4] = normal.y;
+      normals[vertIndex * 6 + 5] = normal.z;
+      
+      const vCoord = (segIdx * verticesPerSegment + subIdx) / (segments.length * verticesPerSegment);
+      uvs[vertIndex * 4 + 0] = 0;
+      uvs[vertIndex * 4 + 1] = vCoord * 50;
+      uvs[vertIndex * 4 + 2] = 1;
+      uvs[vertIndex * 4 + 3] = vCoord * 50;
+      
+      vertIndex++;
+    }
+  }
+  
   const indices: number[] = [];
-  for (let i = 0; i < samples.length; i++) {
-    const i0 = i * 2;
-    const i1 = ((i + 1) % samples.length) * 2;
-
-    indices.push(i0, i0 + 1, i1);
-    indices.push(i1, i0 + 1, i1 + 1);
+  
+  for (let segIdx = 0; segIdx < segments.length; segIdx++) {
+    for (let subIdx = 0; subIdx < verticesPerSegment - 1; subIdx++) {
+      const baseIdx = (segIdx * verticesPerSegment + subIdx) * 2;
+      const nextBaseIdx = baseIdx + 2;
+      
+      indices.push(baseIdx, baseIdx + 1, nextBaseIdx);
+      indices.push(nextBaseIdx, baseIdx + 1, nextBaseIdx + 1);
+    }
+    
+    const lastSubIdx = verticesPerSegment - 1;
+    const baseIdx = (segIdx * verticesPerSegment + lastSubIdx) * 2;
+    const nextSegIdx = (segIdx + 1) % segments.length;
+    const nextBaseIdx = nextSegIdx * verticesPerSegment * 2;
+    
+    indices.push(baseIdx, baseIdx + 1, nextBaseIdx);
+    indices.push(nextBaseIdx, baseIdx + 1, nextBaseIdx + 1);
   }
 
   const geo = new THREE.BufferGeometry();

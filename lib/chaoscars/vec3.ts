@@ -52,3 +52,11 @@ export function v3ClampLen2D(a: Vec3, maxLen: number): Vec3 {
   const s = maxLen / l;
   return { x: a.x * s, y: a.y, z: a.z * s };
 }
+
+export function v3Cross(a: Vec3, b: Vec3): Vec3 {
+  return {
+    x: a.y * b.z - a.z * b.y,
+    y: a.z * b.x - a.x * b.z,
+    z: a.x * b.y - a.y * b.x,
+  };
+}
