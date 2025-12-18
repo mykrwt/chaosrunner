@@ -153,7 +153,7 @@ export default function ChaosCarsGame(props: {
 
     const step = () => {
       const nowPerf = performance.now();
-      const dt = Math.min(0.05, (nowPerf - lastPerf) / 1000);
+      const dt = Math.min(0.033, (nowPerf - lastPerf) / 1000);
       lastPerf = nowPerf;
 
       const now = Date.now();
@@ -216,13 +216,17 @@ export default function ChaosCarsGame(props: {
 
         const snap = lastSnapshotRef.current;
         if (snap) {
-          // Blend toward authoritative snapshot.
+          const age = now - snap.t;
+          const freshness = Math.max(0, 1 - age / 200);
+          
           for (const id of Object.keys(snap.cars)) {
             const target = snap.cars[id];
             const car = carsRef.current[id];
             if (!car) continue;
 
-            const lerp = id === localId ? 0.16 : 0.22;
+            const baseLerp = id === localId ? 0.2 : 0.28;
+            const lerp = baseLerp * freshness;
+            
             car.p.x += (target.p.x - car.p.x) * lerp;
             car.p.y += (target.p.y - car.p.y) * lerp;
             car.p.z += (target.p.z - car.p.z) * lerp;

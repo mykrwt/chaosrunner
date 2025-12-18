@@ -2,12 +2,12 @@ import type { CarInput, CarState, MatchRuntime, PlayerId } from "./types";
 import type { Track } from "./track";
 import { v3, v3Copy, v3Dot, v3Len, v3Sub } from "./vec3";
 
-const GRAVITY = 24;
-const RIDE_HEIGHT = 1.2;
-const CAR_RADIUS = 2.0;
+const GRAVITY = 28;
+const RIDE_HEIGHT = 1.25;
+const CAR_RADIUS = 2.1;
 
 function expDamp(k: number, dt: number): number {
-  return Math.exp(-k * dt);
+  return Math.exp(-k * dt * 60) ** (1 / 60);
 }
 
 function clamp(v: number, min: number, max: number): number {
@@ -182,32 +182,32 @@ export function stepCarArcade(params: { now: number; dt: number; track: Track; c
   let vF = v3Dot(car.v, forward);
   let vR = v3Dot(car.v, right);
 
-  const onRoadGrip = surface.onRoad ? 1 : 0.65;
-  const handbrakeGrip = input.handbrake ? 0.22 : 1;
+  const onRoadGrip = surface.onRoad ? 1 : 0.7;
+  const handbrakeGrip = input.handbrake ? 0.25 : 1;
 
-  const accel = car.grounded ? 54 : 26;
-  const brake = car.grounded ? 64 : 22;
+  const accel = car.grounded ? 64 : 30;
+  const brake = car.grounded ? 72 : 26;
 
   const throttle = clamp(input.throttle, -1, 1);
   if (throttle >= 0) vF += throttle * accel * dt;
   else vF += throttle * brake * dt;
 
   if (input.boost && car.boostCd <= 0) {
-    vF += 26;
-    car.v.y += 6;
-    car.boostCd = 4.2;
+    vF += 32;
+    car.v.y += 7;
+    car.boostCd = 3.8;
   }
 
-  const grip = (car.grounded ? 9.5 : 2.4) * onRoadGrip * handbrakeGrip;
+  const grip = (car.grounded ? 11 : 2.8) * onRoadGrip * handbrakeGrip;
   vR *= expDamp(grip, dt);
 
-  const drag = car.grounded ? 0.7 : 0.25;
+  const drag = car.grounded ? 0.8 : 0.3;
   vF *= expDamp(drag, dt);
 
   const speed = Math.abs(vF);
-  const steerPower = (car.grounded ? 2.6 : 1.1) * clamp(0.5 + speed * 0.02, 0.5, 2.2);
+  const steerPower = (car.grounded ? 3.0 : 1.3) * clamp(0.6 + speed * 0.025, 0.6, 2.5);
   car.yawVel += clamp(input.steer, -1, 1) * steerPower * dt;
-  car.yawVel *= expDamp(6.8, dt);
+  car.yawVel *= expDamp(7.5, dt);
   car.yaw += car.yawVel * dt;
 
   car.v.x = forward.x * vF + right.x * vR;
@@ -223,12 +223,12 @@ export function stepCarArcade(params: { now: number; dt: number; track: Track; c
   const targetY = surf2.height + RIDE_HEIGHT;
 
   const yErr = targetY - car.p.y;
-  const spring = yErr * 70 - car.v.y * 9;
+  const spring = yErr * 85 - car.v.y * 11;
   car.v.y += spring * dt;
 
   if (car.p.y <= targetY) {
     car.p.y = targetY;
-    if (car.v.y < -10) car.v.y *= -0.28;
+    if (car.v.y < -12) car.v.y *= -0.3;
     else car.v.y = 0;
     car.grounded = true;
   } else {
@@ -270,7 +270,7 @@ export function resolveCarCollisions(params: { now: number; cars: Record<PlayerI
         const dist = Math.sqrt(distSq);
         const n = { x: dx / dist, y: 0, z: dz / dist };
 
-        const push = (minDist - dist) * 0.5;
+        const push = (minDist - dist) * 0.52;
         a.p.x -= n.x * push;
         a.p.z -= n.z * push;
         b.p.x += n.x * push;
@@ -278,15 +278,15 @@ export function resolveCarCollisions(params: { now: number; cars: Record<PlayerI
 
         const relV = v3Sub(b.v, a.v);
         const relAlong = v3Dot(relV, n);
-        const impulse = clamp(-relAlong * 1.2 + 6, 0, 22);
+        const impulse = clamp(-relAlong * 1.4 + 7, 0, 26);
 
         a.v.x -= n.x * impulse;
         a.v.z -= n.z * impulse;
         b.v.x += n.x * impulse;
         b.v.z += n.z * impulse;
 
-        a.v.y += 3.2;
-        b.v.y += 3.2;
+        a.v.y += 3.6;
+        b.v.y += 3.6;
 
         a.lastHitAt = params.now;
         b.lastHitAt = params.now;
