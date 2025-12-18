@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Chaos Cars (P2P)
 
-## Getting Started
+A lightweight, arcade-style multiplayer 3D car game that runs entirely in the browser.
 
-First, run the development server:
+- **No backend server, no database, no accounts**
+- **Multiplayer via WebRTC P2P** (using [Trystero](https://github.com/dmotz/trystero) with torrent signaling relays)
+- **3D rendering with Three.js**
+- **Host-authoritative simulation** (inputs → host, snapshots → everyone)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## How to play
+
+### Create a room
+1. Open the app.
+2. Enter your name.
+3. Click **Create room**.
+4. Share the **room code** (e.g. `A2K9QX`) or **Copy link**.
+
+### Join a room
+1. Open the app.
+2. Enter your name.
+3. Paste the room code and click **Join**.
+
+You can also open a shared link like:
+
+```
+https://your-host.example/?room=A2K9QX
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Controls
+- **Keyboard**: `W/S` throttle, `A/D` steer, `Space` drift/handbrake, `Shift` boost, `R` respawn
+- **Gamepad**: `RT/LT` throttle, left stick steer, `B` drift, `A` boost, `Y` respawn
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Networking architecture (no backend)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+All peers join the same WebRTC room.
 
-## Learn More
+- A single peer is elected as **host** (room creator, with deterministic host migration if the host disconnects).
+- All players send their **inputs** to the host over WebRTC data channels.
+- The host simulates physics and broadcasts periodic **snapshots** (car transforms + match state).
+- Clients do lightweight local prediction and smoothly blend toward snapshots.
 
-To learn more about Next.js, take a look at the following resources:
+This model keeps gameplay stable and prevents conflicting simulations without requiring any backend.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Development
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm install
+npm run dev
+```
 
-## Deploy on Vercel
+Open http://localhost:3000
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Static deployment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is configured for static export:
+
+```bash
+npm run build
+```
+
+The static site will be generated into `out/`. Host that folder on any static host (GitHub Pages, Netlify, Cloudflare Pages, S3, etc.).
+
+## Notes / limitations
+
+- WebRTC connectivity depends on NAT/firewall rules. Some networks may block P2P.
+- The torrent strategy uses public relays for matchmaking/signaling only; gameplay traffic is peer-to-peer.
