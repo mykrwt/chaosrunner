@@ -66,7 +66,7 @@ export function stepWorld(params: {
       inputs[id] ??
       ({ t: now, throttle: 0, steer: 0, handbrake: false, boost: false, respawn: false } satisfies CarInput);
 
-    stepCarArcade({ now, dt, track, car, input });
+    stepCarPhysics({ now, dt, track, car, input });
 
     if (input.respawn || car.p.y < -30 || v3Len(car.p) > 700) {
       respawnCar(car, track, car.lastCp);
@@ -173,12 +173,10 @@ function applyElimination(params: { now: number; cars: Record<PlayerId, CarState
   match.eliminated.push(worstId);
 }
 
-export function stepCarArcade(params: { now: number; dt: number; track: Track; car: CarState; input: CarInput }): void {
+export function stepCarPhysics(params: { now: number; dt: number; track: Track; car: CarState; input: CarInput }): void {
   const { now, dt, track, car, input } = params;
 
   car.boostCd = Math.max(0, car.boostCd - dt);
-
-  const surface = track.getSurfaceInfo(car.p.x, car.p.z);
 
   const forward = { x: Math.cos(car.yaw), y: 0, z: Math.sin(car.yaw) };
   const right = { x: -forward.z, y: 0, z: forward.x };
@@ -186,32 +184,33 @@ export function stepCarArcade(params: { now: number; dt: number; track: Track; c
   let vF = v3Dot(car.v, forward);
   let vR = v3Dot(car.v, right);
 
+  const surface = track.getSurfaceInfo(car.p.x, car.p.z);
   const onRoadGrip = surface.onRoad ? 1 : 0.7;
   const handbrakeGrip = input.handbrake ? 0.25 : 1;
 
-  const accel = car.grounded ? 64 : 30;
-  const brake = car.grounded ? 72 : 26;
+  const accel = car.grounded ? 85 : 35;
+  const brake = car.grounded ? 90 : 30;
 
   const throttle = clamp(input.throttle, -1, 1);
   if (throttle >= 0) vF += throttle * accel * dt;
   else vF += throttle * brake * dt;
 
   if (input.boost && car.boostCd <= 0) {
-    vF += 32;
-    car.v.y += 7;
+    vF += 38;
+    car.v.y += 8;
     car.boostCd = 3.8;
   }
 
-  const grip = (car.grounded ? 11 : 2.8) * onRoadGrip * handbrakeGrip;
+  const grip = (car.grounded ? 14 : 3.5) * onRoadGrip * handbrakeGrip;
   vR *= expDamp(grip, dt);
 
-  const drag = car.grounded ? 0.8 : 0.3;
+  const drag = car.grounded ? 0.65 : 0.25;
   vF *= expDamp(drag, dt);
 
   const speed = Math.abs(vF);
-  const steerPower = (car.grounded ? 3.0 : 1.3) * clamp(0.6 + speed * 0.025, 0.6, 2.5);
+  const steerPower = (car.grounded ? 4.2 : 1.8) * clamp(0.5 + speed * 0.02, 0.5, 3.0);
   car.yawVel += clamp(input.steer, -1, 1) * steerPower * dt;
-  car.yawVel *= expDamp(7.5, dt);
+  car.yawVel *= expDamp(9.5, dt);
   car.yaw += car.yawVel * dt;
 
   car.v.x = forward.x * vF + right.x * vR;
@@ -227,12 +226,12 @@ export function stepCarArcade(params: { now: number; dt: number; track: Track; c
   const targetY = surf2.height + RIDE_HEIGHT;
 
   const yErr = targetY - car.p.y;
-  const spring = yErr * 85 - car.v.y * 11;
+  const spring = yErr * 105 - car.v.y * 14;
   car.v.y += spring * dt;
 
   if (car.p.y <= targetY) {
     car.p.y = targetY;
-    if (car.v.y < -12) car.v.y *= -0.3;
+    if (car.v.y < -15) car.v.y *= -0.25;
     else car.v.y = 0;
     car.grounded = true;
   } else {
@@ -268,8 +267,8 @@ export function stepCarArcade(params: { now: number; dt: number; track: Track; c
   const targetPitch = Math.atan2(frontH - backH, sampleDist * 2);
   const targetRoll = Math.atan2(rightH - leftH, sampleDist * 2);
 
-  const pitchSpeed = car.grounded ? 8.0 : 3.5;
-  const rollSpeed = car.grounded ? 7.5 : 3.0;
+  const pitchSpeed = car.grounded ? 10.0 : 4.5;
+  const rollSpeed = car.grounded ? 9.5 : 4.0;
 
   car.pitch += (targetPitch - car.pitch) * pitchSpeed * dt;
   car.roll += (targetRoll - car.roll) * rollSpeed * dt;
@@ -325,4 +324,8 @@ export function resolveCarCollisions(params: { now: number; cars: Record<PlayerI
 
 export function estimateSpeed(car: CarState): number {
   return Math.sqrt(car.v.x * car.v.x + car.v.z * car.v.z);
+}
+
+export function stepCarArcade(params: { now: number; dt: number; track: Track; car: CarState; input: CarInput }): void {
+  stepCarPhysics(params);
 }
