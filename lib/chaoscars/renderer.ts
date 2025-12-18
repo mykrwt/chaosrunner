@@ -2,6 +2,8 @@ import * as THREE from "three";
 import type { CarState, MatchRuntime, PlayerId, PlayerInfo } from "./types";
 import type { Track } from "./track";
 import { estimateSpeed } from "./physics";
+import { generateTerrainMesh } from "./terrain";
+import { generateRoadMesh } from "./road";
 
 export type RenderFrameState = {
   now: number;
@@ -72,34 +74,26 @@ export class ChaosCarsRenderer {
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
     this.scene.add(ambientLight);
 
-    const groundGeo = new THREE.PlaneGeometry(1200, 1200, 150, 150);
-    const groundPos = groundGeo.attributes.position;
-    
-    const seedNum = params.track.seed.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    const seedA = (seedNum * 0.123) % (Math.PI * 2);
-    const seedB = (seedNum * 0.456) % (Math.PI * 2);
-    
-    for (let i = 0; i < groundPos.count; i++) {
-      const x = groundPos.getX(i);
-      const z = groundPos.getY(i);
-      const sx = x * 0.012;
-      const sz = z * 0.012;
-      
-      const h1 = Math.sin(sx + seedA) * 8.5 + Math.cos(sz + seedB) * 8.5;
-      const h2 = Math.sin((sx + sz) * 2.1 + seedA * 0.7) * 5.2;
-      const h3 = Math.cos((sx * 1.8 - sz * 1.9) + seedB * 0.8) * 3.8;
-      const h4 = Math.sin((sx * 3.2 + sz * 2.8) + seedA * 1.3) * 2.1;
-      const h5 = Math.cos((sx * 5.5 - sz * 4.8) + seedB * 1.7) * 1.2;
-      
-      const hills = h1 + h2 + h3 + h4 + h5;
-      const valleyFactor = Math.sin(sx * 0.8) * Math.cos(sz * 0.8);
-      const valleys = valleyFactor * 6.5;
-      
-      const y = hills + valleys - 1.2;
-      groundPos.setZ(i, y);
-    }
-    
-    groundGeo.computeVertexNormals();
+    const terrainData = generateTerrainMesh(
+      params.track.terrain,
+      {
+        seed: 0,
+        size: 1200,
+        resolution: 150,
+        baseHeight: 0,
+        hillAmplitude: 8.5,
+        detailScale: 2.0,
+        ridgeSharpness: 2.2,
+        valleyDepth: 6.5,
+      }
+    );
+
+    const groundGeo = new THREE.BufferGeometry();
+    groundGeo.setAttribute('position', new THREE.BufferAttribute(terrainData.positions, 3));
+    groundGeo.setAttribute('normal', new THREE.BufferAttribute(terrainData.normals, 3));
+    groundGeo.setAttribute('uv', new THREE.BufferAttribute(terrainData.uvs, 2));
+    groundGeo.setIndex(new THREE.BufferAttribute(terrainData.indices, 1));
+    groundGeo.computeBoundingSphere();
     
     const ground = new THREE.Mesh(
       groundGeo,
@@ -110,11 +104,10 @@ export class ChaosCarsRenderer {
         flatShading: false
       })
     );
-    ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     this.scene.add(ground);
 
-    this.road = createRoadMesh(params.track);
+    this.road = createRoadMeshFromSystem(params.track);
     this.scene.add(this.road);
 
     this.createCheckpoints(params.track);
@@ -306,54 +299,14 @@ export class ChaosCarsRenderer {
   }
 }
 
-function createRoadMesh(track: Track): THREE.Mesh {
-  const samples = track.samples;
-  const w = track.roadWidth * 0.5;
-
-  const vertCount = samples.length * 2;
-  const positions = new Float32Array(vertCount * 3);
-  const normals = new Float32Array(vertCount * 3);
-  const uvs = new Float32Array(vertCount * 2);
-
-  for (let i = 0; i < samples.length; i++) {
-    const s = samples[i];
-    const lx = s.p.x + s.left.x * w;
-    const lz = s.p.z + s.left.z * w;
-    const rx = s.p.x - s.left.x * w;
-    const rz = s.p.z - s.left.z * w;
-
-    const y = s.p.y + 0.25;
-
-    positions.set([lx, y, lz, rx, y, rz], i * 2 * 3);
-    
-    const next = samples[(i + 1) % samples.length];
-    const dx = next.p.x - s.p.x;
-    const dy = next.p.y - s.p.y;
-    const dz = next.p.z - s.p.z;
-    const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    const nx = -dy * s.left.z / len;
-    const ny = (dx * dx + dz * dz) / (len * len);
-    const nz = dy * s.left.x / len;
-    const nlen = Math.sqrt(nx * nx + ny * ny + nz * nz);
-    
-    normals.set([nx / nlen, ny / nlen, nz / nlen, nx / nlen, ny / nlen, nz / nlen], i * 2 * 3);
-    uvs.set([0, s.s * 10, 1, s.s * 10], i * 2 * 2);
-  }
-
-  const indices: number[] = [];
-  for (let i = 0; i < samples.length; i++) {
-    const i0 = i * 2;
-    const i1 = ((i + 1) % samples.length) * 2;
-
-    indices.push(i0, i0 + 1, i1);
-    indices.push(i1, i0 + 1, i1 + 1);
-  }
+function createRoadMeshFromSystem(track: Track): THREE.Mesh {
+  const roadData = generateRoadMesh(track.road);
 
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
-  geo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
-  geo.setIndex(indices);
+  geo.setAttribute("position", new THREE.BufferAttribute(roadData.positions, 3));
+  geo.setAttribute("normal", new THREE.BufferAttribute(roadData.normals, 3));
+  geo.setAttribute("uv", new THREE.BufferAttribute(roadData.uvs, 2));
+  geo.setIndex(new THREE.BufferAttribute(roadData.indices, 1));
   geo.computeBoundingSphere();
 
   const mat = new THREE.MeshStandardMaterial({ 

@@ -1,6 +1,8 @@
 import { hashStringToSeed, mulberry32, randRange } from "./random";
 import type { Vec3 } from "./vec3";
 import { v3, v3LenSq, v3Normalize, v3Sub } from "./vec3";
+import { TerrainSystem, createDefaultTerrainConfig } from "./terrain";
+import { RoadSystem, createDefaultRoadConfig } from "./road";
 
 export type TrackSample = {
   p: Vec3;
@@ -38,30 +40,14 @@ export type Track = {
   boostPads: BoostPad[];
   roadWidth: number;
   start: TrackSample;
+  terrain: TerrainSystem;
+  road: RoadSystem;
   getSurfaceInfo: (x: number, z: number) => SurfaceInfo;
   getCheckpointSpawn: (cpIndex: number) => { p: Vec3; yaw: number };
 };
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
-}
-
-function terrainHeight(seedA: number, seedB: number, x: number, z: number): number {
-  const sx = x * 0.012;
-  const sz = z * 0.012;
-  
-  const h1 = Math.sin(sx + seedA) * 8.5 + Math.cos(sz + seedB) * 8.5;
-  const h2 = Math.sin((sx + sz) * 2.1 + seedA * 0.7) * 5.2;
-  const h3 = Math.cos((sx * 1.8 - sz * 1.9) + seedB * 0.8) * 3.8;
-  const h4 = Math.sin((sx * 3.2 + sz * 2.8) + seedA * 1.3) * 2.1;
-  const h5 = Math.cos((sx * 5.5 - sz * 4.8) + seedB * 1.7) * 1.2;
-  
-  const hills = h1 + h2 + h3 + h4 + h5;
-  
-  const valleyFactor = Math.sin(sx * 0.8) * Math.cos(sz * 0.8);
-  const valleys = valleyFactor * 6.5;
-  
-  return hills + valleys;
 }
 
 function computeNearestSample(samples: TrackSample[], x: number, z: number): { i: number; d: number } {
@@ -86,62 +72,29 @@ export function createTrack(seed: string): Track {
   const seedNum = hashStringToSeed(seed);
   const rng = mulberry32(seedNum);
 
-  const baseR = randRange(rng, 135, 165);
-  const wobbleR = randRange(rng, 18, 28);
-  const wobbleH = randRange(rng, 12, 22);
+  const terrainConfig = createDefaultTerrainConfig(seedNum / 9999999);
+  const terrain = new TerrainSystem(terrainConfig);
 
-  const seedA = randRange(rng, 0, Math.PI * 2);
-  const seedB = randRange(rng, 0, Math.PI * 2);
-  const seedC = randRange(rng, 0, Math.PI * 2);
+  const roadConfig = createDefaultRoadConfig(seedNum / 9999999);
+  const road = new RoadSystem(roadConfig, terrain);
 
-  const pointCount = 800;
-  const points: Vec3[] = [];
-
-  for (let i = 0; i < pointCount; i++) {
-    const a = (i / pointCount) * Math.PI * 2;
-    const r =
-      baseR +
-      Math.sin(a * 3 + seedA) * wobbleR +
-      Math.sin(a * 7 + seedB) * wobbleR * 0.5;
-
-    const x = Math.cos(a) * r;
-    const z = Math.sin(a) * r;
-    const y = Math.sin(a * 2 + seedC) * wobbleH + 
-              Math.sin(a * 5 + seedA) * wobbleH * 0.5 +
-              Math.cos(a * 3.5 + seedB) * wobbleH * 0.35 +
-              Math.sin(a * 8 + seedC * 0.7) * wobbleH * 0.2;
-
-    points.push({ x, y, z });
-  }
-
+  const roadSegments = road.getSegments();
   const samples: TrackSample[] = [];
-  let lengthAcc = 0;
-  const segLengths: number[] = [];
 
-  for (let i = 0; i < points.length; i++) {
-    const p0 = points[i];
-    const p1 = points[(i + 1) % points.length];
-    const d = Math.sqrt(v3LenSq(v3Sub(p1, p0)));
-    segLengths.push(d);
-    lengthAcc += d;
+  for (const seg of roadSegments) {
+    samples.push({
+      p: seg.center,
+      t: seg.tangent,
+      left: {
+        x: seg.tangent.z,
+        y: 0,
+        z: -seg.tangent.x,
+      },
+      s: seg.s,
+    });
   }
 
-  let sAcc = 0;
-  for (let i = 0; i < points.length; i++) {
-    const p = points[i];
-    const next = points[(i + 1) % points.length];
-    const prev = points[(i - 1 + points.length) % points.length];
-
-    const t = v3Normalize(v3Sub(next, prev));
-    const left = v3Normalize({ x: -t.z, y: 0, z: t.x });
-
-    const s = sAcc / lengthAcc;
-    sAcc += segLengths[i];
-
-    samples.push({ p, t, left, s });
-  }
-
-  const roadWidth = randRange(rng, 15, 19);
+  const roadWidth = roadConfig.width;
 
   const checkpointCount = 28;
   const checkpoints: Checkpoint[] = [];
@@ -165,13 +118,14 @@ export function createTrack(seed: string): Track {
     const { i, d } = computeNearestSample(samples, x, z);
     const center = samples[i];
     const distToCenter = d;
-    const onRoad = distToCenter <= roadWidth * 0.5;
+    const onRoad = road.isOnRoad(x, z);
 
-    const offH = terrainHeight(seedA, seedB, x, z);
-    const roadH = center.p.y + lerp(-0.4, 0.4, Math.sin(center.s * Math.PI * 2) * 0.5 + 0.5);
+    const height = onRoad 
+      ? road.getHeightAtPosition(x, z) 
+      : terrain.getHeight(x, z);
 
     return {
-      height: onRoad ? roadH : offH,
+      height,
       onRoad,
       s: center.s,
       t: center.t,
@@ -201,6 +155,8 @@ export function createTrack(seed: string): Track {
     boostPads,
     roadWidth,
     start,
+    terrain,
+    road,
     getSurfaceInfo,
     getCheckpointSpawn,
   };
